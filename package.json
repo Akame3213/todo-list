@@ -1,0 +1,63 @@
+{
+  "name": "focus-todo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Спокойное место для ваших задач",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "desktop": "npm run build && electron .",
+    "dist": "npm run build && electron-builder",
+    "test": "node --test tests/*.test.js",
+    "test:desktop": "npm run build && node tests/desktop-smoke.js"
+  },
+  "dependencies": {
+    "@fontsource/golos-text": "^5.3.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.0",
+    "electron": "^40.0.0",
+    "electron-builder": "^26.0.12",
+    "vite": "^6.1.0"
+  },
+  "build": {
+    "appId": "app.focus.todo",
+    "productName": "Фокус",
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json",
+      "build/icon.png"
+    ],
+    "directories": {
+      "output": "release"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Office",
+      "syncDesktopName": true
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.productivity"
+    },
+    "icon": "build/icon.png"
+  },
+  "author": "Focus",
+  "desktopName": "focus.desktop"
+}
