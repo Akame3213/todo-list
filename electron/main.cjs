@@ -1,7 +1,19 @@
-const { app, BrowserWindow, ipcMain, Notification } = require("electron");
+const {
+  app,
+  BrowserWindow,
+  ipcMain,
+  Notification,
+  Tray,
+  Menu,
+} = require("electron");
 const path = require("node:path");
 if (process.platform === "win32") app.setAppUserModelId("app.focus.todo");
 let window;
+let tray;
+let quitting = false;
+app.on("before-quit", () => {
+  quitting = true;
+});
 const singleInstance = app.requestSingleInstanceLock();
 if (!singleInstance) app.quit();
 app.on("second-instance", () => {
@@ -62,6 +74,23 @@ app.whenReady().then(() => {
       sandbox: true,
     },
   });
+  try {
+    tray = new Tray(path.join(__dirname, "../build/icon.png"));
+    tray.setToolTip("Фокус — напоминания включены");
+    tray.setContextMenu(
+      Menu.buildFromTemplate([
+        { label: "Открыть Фокус", click: () => window.show() },
+        { label: "Выйти", click: () => app.quit() },
+      ]),
+    );
+    tray.on("double-click", () => window.show());
+    window.on("close", (event) => {
+      if (!quitting) {
+        event.preventDefault();
+        window.hide();
+      }
+    });
+  } catch {}
   window.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   window.webContents.on("will-navigate", (event) => event.preventDefault());
   window.loadFile(path.join(__dirname, "../dist/index.html"));

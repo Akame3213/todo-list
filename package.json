@@ -1,6 +1,6 @@
 {
   "name": "focus-todo",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "private": true,
   "description": "Спокойное место для ваших задач",
   "type": "module",
@@ -12,11 +12,16 @@
     "desktop": "npm run build && electron .",
     "dist": "npm run build && electron-builder",
     "test": "node --test tests/*.test.js",
-    "test:desktop": "npm run build && node tests/desktop-smoke.js"
+    "test:desktop": "npm run build && node tests/desktop-smoke.js",
+    "server": "node --env-file-if-exists=server/.env server/index.js",
+    "test:server": "node --test tests/server.test.js"
   },
   "dependencies": {
     "@fontsource/golos-text": "^5.3.0",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.1",
     "lucide-react": "^0.468.0",
+    "nodemailer": "^10.2.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
@@ -56,7 +61,8 @@
       ],
       "category": "public.app-category.productivity"
     },
-    "icon": "build/icon.png"
+    "icon": "build/icon.png",
+    "artifactName": "Focus-${version}-${os}-${arch}.${ext}"
   },
   "author": "Focus",
   "desktopName": "focus.desktop"

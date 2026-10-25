@@ -41,6 +41,8 @@ import "@fontsource/golos-text/500.css";
 import "@fontsource/golos-text/600.css";
 import "@fontsource/golos-text/700.css";
 import "./styles.css";
+import "./themes.css";
+import { useAccount, AccountPanel, Avatar, Appearance } from "./account";
 
 const names = {
   today: "Мой день",
@@ -72,7 +74,19 @@ function load() {
 const loaded = load();
 
 function App() {
-  const [data, setData] = useState(loaded.data);
+  useEffect(() => {
+    const media = matchMedia("(prefers-color-scheme: dark)");
+    const apply = () => {
+      const value = localStorage.getItem("focus-theme") || "system";
+      document.documentElement.dataset.theme =
+        value === "system" ? (media.matches ? "dark" : "light") : value;
+    };
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, []);
+  const account = useAccount(loaded.data);
+  const { data, setData, session, syncError, syncStatus } = account;
   const [storageError, setStorageError] = useState(loaded.error);
   const [view, setView] = useState("today");
   const [day, setDay] = useState(dateKey());
@@ -93,7 +107,7 @@ function App() {
     setData((d) => ({ ...d, tasks: updater(d.tasks) }));
 
   useEffect(() => {
-    if (loaded.error && storageError) return;
+    if (session || (loaded.error && storageError)) return;
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
       setStorageError(false);
@@ -172,7 +186,7 @@ function App() {
       ? ["high", "medium", "low"].indexOf(a.priority) -
         ["high", "medium", "low"].indexOf(b.priority)
       : sort === "date"
-        ? (a.due || "9999").localeCompare(b.due || "9999")
+        ? ((a.due || "9999")+"T"+(a.dueTime||"23:59")).localeCompare((b.due || "9999")+"T"+(b.dueTime||"23:59"))
         : a.title.localeCompare(b.title, "ru"),
   );
   const daily = tasks.filter((t) => t.due === day);
@@ -302,16 +316,21 @@ function App() {
             className="profile"
             onClick={() => setModal({ type: "settings" })}
           >
-            <span className="avatar">В</span>
+            <Avatar user={session?.user} />
             <span>
-              <strong>Ваше пространство</strong>
-              <small>Всё под контролем</small>
+              <strong>{session?.user.name || "Ваше пространство"}</strong>
+              <small>{session ? syncStatus : "Войти в аккаунт"}</small>
             </span>
             <SlidersHorizontal size={17} />
           </button>
         </div>
       </aside>
       <div className="main-shell">
+        {syncError && (
+          <div className="storage-warning" role="alert">
+            {syncError}
+          </div>
+        )}
         <header className="topbar">
           <div className="breadcrumb">
             <button
@@ -345,7 +364,13 @@ function App() {
               <Bell size={20} />
               {reminders.length > 0 && <i />}
             </button>
-            <span className="top-avatar">В</span>
+            <button
+              className="icon-button"
+              aria-label="Мой профиль"
+              onClick={() => setModal({ type: "settings" })}
+            >
+              <Avatar className="top-avatar" user={session?.user} />
+            </button>
           </div>
         </header>
         {storageError && (
@@ -540,7 +565,9 @@ function App() {
               )}
               <div className="list-footer">
                 <span className="tiny-dot" />
-                Все изменения сохраняются на этом устройстве
+                {session
+                  ? syncStatus
+                  : "Все изменения сохраняются на этом устройстве"}
               </div>
             </section>
             <aside className="insights">
@@ -720,7 +747,9 @@ function App() {
               <div className="modal-icon">
                 <SlidersHorizontal size={24} />
               </div>
-              <h2>Ваше пространство</h2>
+              <Appearance />
+              <AccountPanel account={account} />
+              <h2>Резервные копии</h2>
               <p className="muted">
                 Данные хранятся локально на этом устройстве. Сохраняйте
                 резервные копии, чтобы перенести задачи или защитить их от
@@ -740,8 +769,10 @@ function App() {
                 </button>
               </div>
               <div className="info-note">
-                Синхронизация между устройствами не подключена. Приложение
-                работает без аккаунта и интернета.
+                Без входа данные хранятся только на устройстве. После входа
+                изменения отправляются на ваш сервер. Для загрузки изменений с
+                другого устройства повторите вход; при конфликте версий текущие
+                данные не перезаписываются.
               </div>
             </>
           ) : modal.type === "import" ? (
@@ -880,6 +911,12 @@ function TaskRow({ task, project, today, toggle, edit }) {
                   })}
             </span>
           )}
+          {task.dueTime && (
+            <span>
+              <Clock size={12} />
+              {task.dueTime}
+            </span>
+          )}
           {task.reminder && (
             <span>
               <Bell size={12} />
@@ -980,7 +1017,20 @@ function TaskForm({
   const [priority, setPriority] = useState(task?.priority || "medium");
   const [project, setProject] = useState(task?.project || defaultProject);
   const [due, setDue] = useState(task?.due || defaultDate);
-  const [reminder, setReminder] = useState(task?.reminder || "");
+  const toLocal = (value) => {
+    if (!value) return "";
+    const d = new Date(value);
+    return (
+      dateKey(d) +
+      "T" +
+      String(d.getHours()).padStart(2, "0") +
+      ":" +
+      String(d.getMinutes()).padStart(2, "0")
+    );
+  };
+  const [reminder, setReminder] = useState(toLocal(task?.reminder));
+  const [dueTime, setDueTime] = useState(task?.dueTime || "");
+  const [emailReminder, setEmailReminder] = useState(!!task?.emailReminder);
   const [confirmDelete, setConfirmDelete] = useState(false);
   return (
     <form
@@ -995,9 +1045,12 @@ function TaskForm({
           priority,
           project,
           due,
-          reminder,
+          reminder: reminder ? new Date(reminder).toISOString() : "",
+          dueTime: due ? dueTime : "",
+          emailReminder,
           completed: task?.completed || false,
-          notified: reminder === task?.reminder ? !!task?.notified : false,
+          notified:
+            reminder === toLocal(task?.reminder) ? !!task?.notified : false,
         });
       }}
     >
@@ -1048,6 +1101,15 @@ function TaskForm({
           />
         </label>
       </div>
+      <label className="field">
+        Точное время задачи
+        <input
+          type="time"
+          value={dueTime}
+          disabled={!due}
+          onChange={(e) => setDueTime(e.target.value)}
+        />
+      </label>
       <fieldset className="priority-field">
         <legend>Приоритет</legend>
         <div>
@@ -1074,9 +1136,19 @@ function TaskForm({
           onChange={(e) => setReminder(e.target.value)}
         />
       </label>
+      <label className="email-choice">
+        <input
+          type="checkbox"
+          checked={emailReminder}
+          disabled={!reminder}
+          onChange={(e) => setEmailReminder(e.target.checked)}
+        />{" "}
+        Также отправить на почту профиля
+      </label>
       <p className="field-hint">
         <Clock size={13} />
-        Напомним, пока Фокус открыт. Пропущенное — при запуске.
+        На компьютере — пока Фокус работает, в том числе в трее. Почта — при
+        работающем сервере, после входа, синхронизации и подтверждения адреса.
       </p>
       <div className="form-footer">
         {task ? (

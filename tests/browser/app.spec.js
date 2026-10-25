@@ -129,25 +129,23 @@ test("backup export and restore preserves data", async ({ page }) => {
     .click();
   const file = await download;
   expect(file.suggestedFilename()).toMatch(/^focus-.*\.json$/);
-  await page
-    .locator("input[type=file]")
-    .setInputFiles({
-      name: "backup.json",
-      mimeType: "application/json",
-      buffer: Buffer.from(
-        JSON.stringify({
-          projects: [],
-          tasks: [
-            {
-              id: "restored",
-              title: "Восстановленная задача",
-              priority: "high",
-              completed: false,
-            },
-          ],
-        }),
-      ),
-    });
+  await page.locator("input[type=file]").setInputFiles({
+    name: "backup.json",
+    mimeType: "application/json",
+    buffer: Buffer.from(
+      JSON.stringify({
+        projects: [],
+        tasks: [
+          {
+            id: "restored",
+            title: "Восстановленная задача",
+            priority: "high",
+            completed: false,
+          },
+        ],
+      }),
+    ),
+  });
   await page
     .getByRole("button", { name: "Заменить данные", exact: true })
     .click();
@@ -176,5 +174,76 @@ test("mobile layout stays inside viewport and navigation works", async ({
     .click();
   await expect(
     page.getByRole("heading", { name: "Все задачи." }),
+  ).toBeVisible();
+});
+
+test("themes, registration, customizable profile and server-saved exact reminder time", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /Ваше пространство/ }).click();
+  await page.getByRole("button", { name: "Тёмная", exact: true }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page
+    .getByRole("button", {
+      name: "Нет аккаунта? Зарегистрироваться",
+      exact: true,
+    })
+    .click();
+  const email = `browser-${Date.now()}@example.com`;
+  await page.getByLabel("Ваше имя", { exact: true }).fill("Тест профиля");
+  await page.getByLabel("Электронная почта", { exact: true }).fill(email);
+  await page.getByLabel("Пароль", { exact: true }).fill("browser-password-123");
+  await page
+    .getByRole("button", { name: "Зарегистрироваться", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Мой профиль" }),
+  ).toBeVisible();
+  await page.getByLabel("Имя", { exact: true }).fill("Новое имя");
+  await page.getByLabel("О себе", { exact: true }).fill("Мои новые цели");
+  await page
+    .locator(".photo-editor input[type=file]")
+    .setInputFiles("build/icon.png");
+  await expect(page.locator(".photo-editor img")).toHaveAttribute(
+    "src",
+    /^data:image\/jpeg/,
+  );
+  await page
+    .getByRole("button", { name: "Сохранить профиль", exact: true })
+    .click();
+  await expect(
+    page.getByText("Профиль сохранён", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Закрыть окно", exact: true }).click();
+  await page.getByRole("button", { name: "Новая задача" }).click();
+  await page
+    .getByLabel("Название", { exact: true })
+    .fill("Задача с точным временем");
+  await page.getByLabel("Точное время задачи", { exact: true }).fill("14:35");
+  await page
+    .getByLabel("Напоминание", { exact: true })
+    .fill("2030-01-01T14:30");
+  await page.getByLabel("Также отправить на почту профиля").check();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Добавить задачу", exact: true })
+    .click();
+  await expect(page.locator(".list-footer")).toContainText("Синхронизировано");
+  await page.reload();
+  await expect(
+    page.getByText("Задача с точным временем", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("14:35", { exact: true })).toBeVisible();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.getByRole("button", { name: "Мой профиль", exact: true }).click();
+  await expect(page.getByLabel("О себе", { exact: true })).toHaveValue(
+    "Мои новые цели",
+  );
+  await page.getByRole("button", { name: "Светлая", exact: true }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page.getByRole("button", { name: "Выйти", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Вход в Фокус" }),
   ).toBeVisible();
 });
