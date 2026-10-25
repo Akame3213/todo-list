@@ -1,5 +1,9 @@
 # Фокус
 
+**[Скачать готовое приложение → GitHub Releases](https://github.com/Akame3213/todo-list/releases/latest)**
+
+В разделе **Assets** выберите `.exe` для Windows или `.AppImage` для Linux. Первая публикация появится после успешного завершения [сборки GitHub Actions](https://github.com/Akame3213/todo-list/actions/workflows/release.yml).
+
 Приложение для спокойного управления задачами на русском языке. Работает в отдельном окне на компьютере (Electron) и в браузере.
 
 ![Интерфейс приложения «Фокус»](docs/preview.png)
