@@ -25,7 +25,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-latest
+          - os: ubuntu-24.04
             platform: win
             target: portable
           - os: ubuntu-24.04
@@ -44,7 +44,20 @@ jobs:
       - run: npm test
       - run: npm run build
       - name: Package unsigned application
-        run: npx electron-builder --${{ matrix.platform }} ${{ matrix.target }} -c.win.signExecutable=false --publish never
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx electron-builder --${{ matrix.platform }} ${{ matrix.target }} -c.win.signExecutable=false --publish never 2>&1 | tee build.log
+      - name: Summarize packaging failure
+        if: failure()
+        shell: bash
+        run: |
+          if test -f build.log; then
+            echo '### Packaging output' >> "$GITHUB_STEP_SUMMARY"
+            echo '```text' >> "$GITHUB_STEP_SUMMARY"
+            tail -100 build.log >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: focus-${{ matrix.platform }}

@@ -1,6 +1,6 @@
 {
   "name": "focus-todo",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Спокойное место для ваших задач",
   "type": "module",
